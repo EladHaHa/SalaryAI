@@ -7,29 +7,33 @@ from sklearn.linear_model import LinearRegression
 
 
 # =========================
-# הגדרות עיצוב - עברית ויישור לימין
+# עיצוב האפליקציה - עברית
 # =========================
 
 st.markdown(
     """
     <style>
+    /* כל האפליקציה מימין לשמאל */
     .stApp {
         direction: rtl;
         text-align: right;
     }
 
-    h1, h2, h3, h4, h5, h6, p, div, label {
+    /* כותרות וטקסט */
+    h1, h2, h3, h4, h5, h6, p, label {
         text-align: right;
         direction: rtl;
     }
 
+    /* תיבות קלט */
     input {
         direction: rtl;
         text-align: right;
     }
 
+    /* הטבלה */
     [data-testid="stDataFrame"] {
-        direction: rtl;
+        width: 100%;
     }
     </style>
     """,
@@ -53,7 +57,10 @@ csv_path = os.path.join(path, "Salary Data.csv")
 data = pd.read_csv(csv_path)
 
 
-# המרת העמודות לערכים מספריים
+# =========================
+# ניקוי הנתונים
+# =========================
+
 data[FEATURE_COLUMN] = pd.to_numeric(
     data[FEATURE_COLUMN],
     errors="coerce"
@@ -64,8 +71,7 @@ data[TARGET_COLUMN] = pd.to_numeric(
     errors="coerce"
 )
 
-
-# הסרת שורות שבהן חסרים ערכים
+# הסרת שורות עם ערכים חסרים
 data = data.dropna(
     subset=[FEATURE_COLUMN, TARGET_COLUMN]
 )
@@ -80,10 +86,10 @@ y = data[TARGET_COLUMN].to_numpy()
 
 
 # =========================
-# חישוב Baseline
+# Baseline
 # =========================
 
-# ה-Baseline מנבא תמיד את ממוצע השכר
+# ה-Baseline חוזה תמיד את ממוצע השכר
 baseline_prediction = np.mean(y)
 
 # חישוב MAE של ה-Baseline
@@ -100,14 +106,23 @@ X_reshaped = X.reshape(-1, 1)
 
 model = LinearRegression()
 
-model.fit(X_reshaped, y)
+model.fit(
+    X_reshaped,
+    y
+)
 
 
-# תחזיות המודל על נתוני האימון
+# =========================
+# תחזיות המודל
+# =========================
+
 y_hat = model.predict(X_reshaped)
 
 
-# חישוב MAE של המודל
+# =========================
+# חישוב Model Loss
+# =========================
+
 model_loss = np.mean(
     np.abs(y - y_hat)
 )
@@ -134,14 +149,22 @@ st.write(
 
 st.write(
     "רגרסיה ליניארית מנסה למצוא קשר ישר בין שנות הניסיון לבין השכר. "
-    "המודל מתאים קו ישר לנתונים, כאשר ציר אחד מייצג את שנות הניסיון "
-    "והציר השני מייצג את השכר."
+    "המודל מתאים קו ישר לנתונים, כאשר שנות הניסיון הן משתנה הקלט "
+    "והשכר הוא משתנה המטרה."
 )
 
 
+# =========================
 # הצגת טבלת הנתונים
+# =========================
+
 if st.checkbox("הצג את טבלת הנתונים"):
-    st.dataframe(data)
+
+    st.dataframe(
+        data,
+        use_container_width=True,
+        hide_index=True
+    )
 
 
 # =========================
@@ -153,13 +176,16 @@ st.header("2. קבלת תחזית שכר")
 years_input = st.number_input(
     "הכנס שנות ניסיון:",
     value=5.0,
-    step=0.5
+    step=0.5,
+    min_value=0.0
 )
 
 
 if st.button("חשב תחזית"):
 
-    pred = model.predict([[years_input]])[0]
+    pred = model.predict(
+        [[years_input]]
+    )[0]
 
     st.write(
         f"**השכר המשוער עבור {years_input} שנות ניסיון "
@@ -179,16 +205,17 @@ st.write("### שלבי תהליך האימון:")
 st.write(
     "1. **טעינת הנתונים:** "
     "בחרתי מערך נתונים מ-Kaggle וטענתי אותו לאפליקציה. "
-    "לאחר מכן המרתי את העמודות של שנות הניסיון והשכר לערכים מספריים "
-    "והסרתי שורות שבהן היו ערכים חסרים או לא תקינים."
+    "לאחר מכן המרתִי את העמודות של שנות הניסיון והשכר "
+    "לערכים מספריים והסרתי שורות שבהן היו ערכים חסרים."
 )
 
 
 st.write(
     "2. **יצירת Baseline:** "
-    "חישבתי נקודת ייחוס (Baseline) באמצעות ממוצע השכר של כלל העובדים. "
-    "ה-Baseline מניח שאין לנו מידע נוסף על העובד, ולכן בכל מקרה "
-    "הוא חוזה שהשכר יהיה שווה לממוצע השכר של כל העובדים."
+    "חישבתי נקודת ייחוס (Baseline) באמצעות ממוצע השכר "
+    "של כלל העובדים. ה-Baseline מניח שאין לנו מידע נוסף "
+    "על העובד, ולכן עבור כל עובד הוא חוזה את אותו ערך: "
+    "ממוצע השכר של כל העובדים."
 )
 
 
@@ -197,14 +224,14 @@ st.write(
     "השתמשתי בספריות Scikit-learn ו-NumPy כדי לאמן מודל "
     "של רגרסיה ליניארית. המודל מקבל את שנות הניסיון כקלט "
     "ואת השכר כיעד. במהלך האימון המודל מוצא את הפרמטרים "
-    "**w** ו-**b**, כך שהוא יוצר משוואת קו ישר מהצורה "
+    "**w** ו-**b**, ויוצר משוואת קו ישר מהצורה "
     "**y = wx + b**."
 )
 
 
 st.write(
-    "4. **חישוב ה-Loss והשוואה ל-Baseline:** "
-    "לאחר שהמודל אומן, חישבתי את התחזיות שלו והשוויתי אותן "
+    "4. **חישוב ה-Loss:** "
+    "לאחר אימון המודל חישבתי את התחזיות שלו והשוויתי אותן "
     "לשכר האמיתי. לצורך ההערכה השתמשתי ב-MAE "
     "(Mean Absolute Error), שמחשב את ממוצע המרחק המוחלט "
     "בין התחזית לבין הערך האמיתי."
@@ -212,10 +239,11 @@ st.write(
 
 
 st.write(
-    "כדי לבדוק האם המודל הליניארי טוב יותר מה-Baseline, "
-    "משווים בין ה-Model Loss לבין ה-Baseline Loss. "
-    "אם ה-Model Loss נמוך יותר, המשמעות היא שהמודל הליניארי "
-    "מבצע תחזיות מדויקות יותר מה-Baseline על הנתונים."
+    "5. **השוואה ל-Baseline:** "
+    "השוויתי בין ה-Model Loss לבין ה-Baseline Loss. "
+    "אם ה-Model Loss נמוך יותר מה-Baseline Loss, "
+    "המשמעות היא שהמודל הליניארי מצליח לבצע תחזיות "
+    "מדויקות יותר מהתחזית הפשוטה של ממוצע השכר."
 )
 
 
@@ -226,12 +254,35 @@ st.write(
 st.write("### תוצאות ההערכה:")
 
 st.write(
-    f"* **Baseline Loss (שגיאת הבסיס):** "
+    f"**Baseline Loss (שגיאת הבסיס):** "
     f"${baseline_loss:,.2f}"
 )
 
 st.write(
-    f"* **Model Loss (שגיאת המודל):** "
+    f"**Model Loss (שגיאת המודל):** "
     f"${model_loss:,.2f}"
 )
 
+
+# =========================
+# השוואת המודל ל-Baseline
+# =========================
+
+if model_loss < baseline_loss:
+
+    st.success(
+        "המודל הליניארי השיג Loss נמוך יותר מה-Baseline, "
+        "ולכן הוא מדויק יותר מה-Baseline על נתוני האימון."
+    )
+
+elif model_loss > baseline_loss:
+
+    st.warning(
+        "המודל הליניארי השיג Loss גבוה יותר מה-Baseline."
+    )
+
+else:
+
+    st.info(
+        "המודל הליניארי וה-Baseline השיגו את אותו Loss."
+    )
