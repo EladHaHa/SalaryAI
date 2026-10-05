@@ -38,7 +38,7 @@ def train_model():
     data[TARGET_COLUMN] = pd.to_numeric(data[TARGET_COLUMN], errors="coerce")
     data = data.dropna(subset=[FEATURE_COLUMN, TARGET_COLUMN])
 
-    # הכנת المשתנים
+    # הכנת המשתנים
     X = data[FEATURE_COLUMN].to_numpy()
     y = data[TARGET_COLUMN].to_numpy()
 
@@ -71,9 +71,5 @@ st.divider()
 # ---------------------------------------------------------
 st.header("1. אודות המודל והנתונים")
 st.write(
-    f"""
-המודל שנבנה הוא מודל **Linear Regression** (רגרסיה ליניארית).
-* **משתנה חיזוי (Target):** `{TARGET_COLUMN}` - השכר הצפוי.
-* **משתנה מנבא (Feature):** `{FEATURE_COLUMN}` - מספר שנות הניסיון של העובד.
-
-המודל לומד את הקשר הקווי בין שנות הניסיון לבין גובה השכר במאגר הנתונים, ומחשב משוואה מהצורה:
+    "המודל שנבנה הוא מודל **Linear Regression** (רגרסיה ליניארית).\n"
+    f"* **משתנה חיזוי (Target):
