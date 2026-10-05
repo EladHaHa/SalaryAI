@@ -6,13 +6,12 @@ import streamlit as st
 from sklearn.linear_model import LinearRegression
 
 # ==========================================
-# 1. טעינת הנתונים ואימון המודל (הקוד המקורי)
+# 1. טעינת הנתונים ואימון המודל
 # ==========================================
 KAGGLE_DATASET = "rkiattisak/salaly-prediction-for-beginer"
 FEATURE_COLUMN = "Years of Experience"
 TARGET_COLUMN = "Salary"
 
-# הורדת הנתונים וקריאת הקובץ
 path = kagglehub.dataset_download(KAGGLE_DATASET)
 csv_path = os.path.join(path, "Salary Data.csv")
 data = pd.read_csv(csv_path)
@@ -43,29 +42,38 @@ model_loss = np.mean(np.abs(y - y_hat))
 
 
 # ==========================================
-# 2. ממשק Streamlit פשוט
+# 2. ממשק Streamlit
 # ==========================================
 
-# כותרת והסבר על המודל
+# הגדרת יישור לימין לכל המעטפת
+st.markdown(
+    "<style>div.block-container{direction: rtl; text-align: right;}</style>",
+    unsafe_allow_html=True,
+)
+
 st.title("מערכת חיזוי שכר")
 
-st.header("הסבר על המודל")
+st.header("1. הסבר על המודל")
 st.write(
     "האפליקציה משתמשת במודל רגרסיה ליניארית כדי לחזות את השכר (Salary) בהתבסס על מספר שנות הניסיון (Years of Experience)."
 )
 
-# קלט ופלט לקבלת תחזית
-st.header("קבלת תחזית")
+# הצגת הטבלה
+if st.checkbox("הצג את טבלת הנתונים"):
+    st.dataframe(data)
+
+st.header("2. קבלת תחזית")
 years_input = st.number_input("הכנס שנות ניסיון:", value=5.0, step=0.5)
 
 if st.button("חשב תחזית"):
     pred = model.predict([[years_input]])[0]
-    st.write(f"השכר המשוער עבור {years_input} שנות ניסיון הוא: {pred:.2f}")
+    st.write(
+        f"**השכר המשוער עבור {years_input} שנות ניסיון הוא: ${pred:,.2f}**"
+    )
 
-# הסבר על תהליך האימון וה-Loss
-st.header("הסבר על תהליך האימון וה-Loss")
-st.write(f"Baseline Loss (MAE): {baseline_loss:.2f}")
-st.write(f"Model Loss (MAE): {model_loss:.2f}")
+st.header("3. הסבר על תהליך האימון וה-Loss")
+st.write(f"Baseline Loss (MAE): **${baseline_loss:,.2f}**")
+st.write(f"Model Loss (MAE): **${model_loss:,.2f}**")
 
 st.write(
     "ה-Baseline מייצג תחזית פשוטה לפי ממוצע השכר בלבד. ה-Model Loss נמוך יותר, מה שמעיד על כך ששימוש בשנות הניסיון משפר את דיוק החיזוי."
