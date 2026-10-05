@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# הגדרת יישור לימין (RTL) עבור עברית
+# הגדרת יישור מלא לימין (RTL) עבור Streamlit
 # ---------------------------------------------------------
 st.markdown(
     """
@@ -120,46 +120,4 @@ with col1:
     if st.button("חשב תחזית שכר 🚀"):
         prediction = model.predict([[user_experience]])[0]
         st.success(f"**השכר המשוער עבור {user_experience} שנות ניסיון הוא:**")
-        st.metric(label="תחזית שכר מוערכת", value=f"${prediction:,.2f}")
-
-st.divider()
-
-# ---------------------------------------------------------
-# סעיף ג': הסבר על תהליך האימון והשוואת ה-Loss
-# ---------------------------------------------------------
-st.header("3. תהליך האימון והערכת איכות המודל")
-
-st.write(
-    "כדי לבדוק עד כמה המודל שלנו מוצלח, אנו משווים אותו ל-**Baseline Model** (מודל בסיס פשוט שמנבא תמיד את השכר הממוצע, ללא תלות בשנות הניסיון)."
-)
-st.write(
-    "מדד השגיאה שנבדק הוא **MAE (Mean Absolute Error)** - המרחק הממוצע בדולרים בין התחזית לשכר האמיתי."
-)
-
-col_metric1, col_metric2, col_metric3 = st.columns(3)
-
-with col_metric1:
-    st.metric(
-        label="Baseline Loss (שגיאת בסיס)",
-        value=f"${baseline_loss:,.2f}",
-        help="השגיאה הממוצעת אם היינו פשוט מנבאים את השכר הממוצע לכולם.",
-    )
-
-with col_metric2:
-    st.metric(
-        label="Model Loss (שגיאת המודל)",
-        value=f"${model_loss:,.2f}",
-        delta=f"-${baseline_loss - model_loss:,.2f}",
-        delta_color="normal",
-        help="השגיאה הממוצעת של מודל הרגרסיה הליניארית שלנו.",
-    )
-
-with col_metric3:
-    improvement = ((baseline_loss - model_loss) / baseline_loss) * 100
-    st.metric(
-        label="אחוז שיפור לעומת ה-Baseline", value=f"{improvement:.1f}%"
-    )
-
-st.info(
-    f"**מסקנה:** ה-Loss של המודל (\({model_loss:,.2f}) נמוך משמעותית מ-Loss ה-Baseline (\){baseline_loss:,.2f}). פירוש הדבר הוא ששימוש בשנות הניסיון כמשתנה מנבא מוריד את השגיאה הממוצעת בחיזוי בכ-{improvement:.1f}%, ומציג שיפור ניכר בחיזוי השכר."
-)
+        st.metric(label="תח
