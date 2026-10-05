@@ -264,25 +264,3 @@ st.write(
 )
 
 
-# =========================
-# השוואת המודל ל-Baseline
-# =========================
-
-if model_loss < baseline_loss:
-
-    st.success(
-        "המודל הליניארי השיג Loss נמוך יותר מה-Baseline, "
-        "ולכן הוא מדויק יותר מה-Baseline על נתוני האימון."
-    )
-
-elif model_loss > baseline_loss:
-
-    st.warning(
-        "המודל הליניארי השיג Loss גבוה יותר מה-Baseline."
-    )
-
-else:
-
-    st.info(
-        "המודל הליניארי וה-Baseline השיגו את אותו Loss."
-    )
