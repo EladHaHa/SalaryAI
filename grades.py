@@ -4,389 +4,836 @@ import kagglehub
 import numpy as np
 import pandas as pd
 import streamlit as st
+
 from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 
-# =========================
-# עיצוב האפליקציה - עברית
-# =========================
+# =====================================================
+# הגדרות ראשוניות
+# =====================================================
 
 st.set_page_config(
-    page_title="מערכת חיזוי שכר",
+    page_title="מנהל חברת ההייטק",
     page_icon="💼",
     layout="wide"
 )
 
-
+# עיצוב האתר ויישור לעברית
 st.markdown(
     """
     <style>
-    /* כיוון כללי של האפליקציה */
     .stApp {
-        direction: rtl !important;
-        text-align: right !important;
+        direction: rtl;
+        text-align: right;
     }
 
-    /* יישור כל הכותרות לימין */
-    .stApp h1,
-    .stApp h2,
-    .stApp h3,
-    .stApp h4,
-    .stApp h5,
-    .stApp h6 {
+    h1, h2, h3, h4, h5, h6 {
         direction: rtl !important;
         text-align: right !important;
-        width: 100% !important;
+        width: 100%;
     }
 
-    /* יישור כל הטקסטים לימין */
-    .stApp p,
-    .stApp label,
-    .stApp li,
-    .stApp .stMarkdown {
-        direction: rtl !important;
-        text-align: right !important;
+    p, label, li {
+        direction: rtl;
+        text-align: right;
     }
 
-    /* יישור תיבות הקלט */
-    div[data-testid="stNumberInput"] label {
-        direction: rtl !important;
-        text-align: right !important;
+    div[data-testid="stMetric"] {
+        direction: rtl;
+        text-align: right;
     }
 
     div[data-testid="stNumberInput"] input {
-        text-align: right !important;
+        direction: ltr;
+        text-align: right;
     }
 
-    /* יישור תיבות סימון */
-    div[data-testid="stCheckbox"] {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-
-    /* טבלת הנתונים */
-    [data-testid="stDataFrame"] {
-        width: 100%;
-    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 
-# =========================
+# =====================================================
 # טעינת הנתונים
-# =========================
-
-KAGGLE_DATASET = "rkiattisak/salaly-prediction-for-beginer"
+# =====================================================
 
 FEATURE_COLUMNS = ["Years of Experience", "Age"]
 TARGET_COLUMN = "Salary"
 
-
 @st.cache_data
 def load_data():
 
-    path = kagglehub.dataset_download(KAGGLE_DATASET)
+    path = kagglehub.dataset_download(
+        "rkiattisak/salaly-prediction-for-beginer"
+    )
 
     csv_path = os.path.join(path, "Salary Data.csv")
 
-    df = pd.read_csv(csv_path)
+    data = pd.read_csv(csv_path)
 
-    # המרת הערכים בעמודות לערכים מספריים
     for column in FEATURE_COLUMNS + [TARGET_COLUMN]:
-        df[column] = pd.to_numeric(
-            df[column],
+        data[column] = pd.to_numeric(
+            data[column],
             errors="coerce"
         )
 
-    # הסרת שורות עם ערכים חסרים
-    df = df.dropna(
+    data = data.dropna(
         subset=FEATURE_COLUMNS + [TARGET_COLUMN]
     )
 
-    return df
+    return data
 
 
-data = load_data()
+# =====================================================
+# אימון המודל
+# =====================================================
+
+@st.cache_resource
+def train_model():
+
+    data = load_data()
+
+    train_data, test_data = train_test_split(
+        data,
+        test_size=0.25,
+        random_state=42
+    )
+
+    X_train = train_data[FEATURE_COLUMNS].to_numpy()
+    y_train = train_data[TARGET_COLUMN].to_numpy()
+
+    X_test = test_data[FEATURE_COLUMNS].to_numpy()
+    y_test = test_data[TARGET_COLUMN].to_numpy()
+
+    # מודל המשתמש בשני משתנים
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    predictions = model.predict(X_test)
+
+    model_mse = mean_squared_error(
+        y_test,
+        predictions
+    )
+
+    # מודל המשתמש רק בניסיון
+    one_feature_model = LinearRegression()
+
+    one_feature_model.fit(
+        train_data[["Years of Experience"]],
+        y_train
+    )
+
+    one_feature_predictions = one_feature_model.predict(
+        test_data[["Years of Experience"]]
+    )
+
+    one_feature_mse = mean_squared_error(
+        y_test,
+        one_feature_predictions
+    )
+
+    # מודל בסיסי שמנבא תמיד את ממוצע השכר
+    baseline_prediction = np.mean(y_train)
+
+    baseline_mse = mean_squared_error(
+        y_test,
+        np.full(len(y_test), baseline_prediction)
+    )
+
+    return (
+        model,
+        train_data,
+        test_data,
+        model_mse,
+        one_feature_mse,
+        baseline_mse
+    )
 
 
-# =========================
-# הכנת הנתונים למודל
-# =========================
+try:
+    (
+        model,
+        train_data,
+        test_data,
+        model_mse,
+        one_feature_mse,
+        baseline_mse
+    ) = train_model()
 
-X = data[FEATURE_COLUMNS].to_numpy()
-
-y = data[TARGET_COLUMN].to_numpy()
-
-
-# =========================
-# Baseline
-# =========================
-
-# ה-Baseline חוזה תמיד את ממוצע השכר
-baseline_prediction = np.mean(y)
-
-# חישוב MSE של ה-Baseline
-baseline_loss = np.mean(
-    (y - baseline_prediction) ** 2
-)
+except Exception as e:
+    st.error("אירעה שגיאה בטעינת הנתונים או באימון המודל.")
+    st.exception(e)
+    st.stop()
 
 
-# =========================
-# אימון מודל עם שני מאפיינים
-# =========================
+# =====================================================
+# אתחול מצב המשחק
+# =====================================================
 
-model = LinearRegression()
+def initialize_game():
 
-model.fit(X, y)
+    defaults = {
+        "game_started": False,
+        "round_number": 0,
+        "user_score": 0,
+        "model_score": 0,
+        "rounds": [],
+        "history": [],
+        "answered": False,
+        "last_result": None
+    }
 
+    for key, value in defaults.items():
 
-# =========================
-# תחזיות המודל
-# =========================
-
-y_hat = model.predict(X)
-
-
-# =========================
-# חישוב Model Loss
-# =========================
-
-model_loss = np.mean(
-    (y - y_hat) ** 2
-)
+        if key not in st.session_state:
+            st.session_state[key] = value
 
 
-# =========================
-# אימון מודל עם מאפיין אחד
-# לצורך השוואה
-# =========================
-
-model_one_feature = LinearRegression()
-
-X_one_feature = data[
-    ["Years of Experience"]
-].to_numpy()
-
-model_one_feature.fit(X_one_feature, y)
-
-y_hat_one = model_one_feature.predict(
-    X_one_feature
-)
-
-model_loss_one = np.mean(
-    (y - y_hat_one) ** 2
-)
+initialize_game()
 
 
-# =========================
-# ממשק המשתמש
-# =========================
+# =====================================================
+# יצירת משחק חדש
+# =====================================================
 
-st.title("מערכת חיזוי שכר")
+def start_game():
+
+    if len(test_data) < 15:
+        st.error("אין מספיק נתונים כדי להתחיל משחק.")
+        return
+
+    # בחירת 15 עובדים אמיתיים מתוך נתוני הבדיקה
+    selected_data = test_data.sample(
+        n=15
+    ).reset_index(drop=True)
+
+    rounds = []
+
+    # תקציבי המשחק מבוססים על התפלגות השכר בנתוני האימון
+    budgets = [
+        float(train_data[TARGET_COLUMN].quantile(0.40)),
+        float(train_data[TARGET_COLUMN].quantile(0.50)),
+        float(train_data[TARGET_COLUMN].quantile(0.60))
+    ]
+
+    rng = np.random.default_rng()
+
+    for round_index in range(5):
+
+        candidates = []
+
+        for candidate_index in range(3):
+
+            row = selected_data.iloc[
+                round_index * 3 + candidate_index
+            ]
+
+            features = np.array([[
+                row["Years of Experience"],
+                row["Age"]
+            ]])
+
+            prediction = float(
+                model.predict(features)[0]
+            )
+
+            candidates.append({
+
+                "name": f"מועמד {chr(65 + candidate_index)}",
+
+                "age": int(row["Age"]),
+
+                "experience": float(
+                    row["Years of Experience"]
+                ),
+
+                "prediction": prediction,
+
+                "actual_salary": float(
+                    row[TARGET_COLUMN]
+                )
+            })
+
+        budget = float(rng.choice(budgets))
+
+        rounds.append({
+            "candidates": candidates,
+            "budget": budget
+        })
+
+    # שמירת המשחק ב-session_state
+    st.session_state.game_started = True
+    st.session_state.round_number = 0
+    st.session_state.user_score = 0
+    st.session_state.model_score = 0
+    st.session_state.rounds = rounds
+    st.session_state.history = []
+    st.session_state.answered = False
+    st.session_state.last_result = None
 
 
-# =========================
-# 1. הסבר על המודל והנתונים
-# =========================
+# =====================================================
+# בחירת המועמד של המודל
+# =====================================================
 
-st.header("1. הסבר על המודל והנתונים")
+def model_choose_candidate(candidates, budget):
 
-st.write(
-    "האפליקציה משתמשת במודל רגרסיה ליניארית "
-    "(Linear Regression) כדי לחזות את השכר של עובד "
-    "בהתבסס על שני מאפיינים: מספר שנות הניסיון שלו "
-    "(Years of Experience) והגיל שלו (Age)."
-)
+    # המודל בודק אילו מועמדים עומדים בתקציב לפי התחזית
+    affordable = [
+        i for i, candidate in enumerate(candidates)
+        if candidate["prediction"] <= budget
+    ]
 
-st.write(
-    "רגרסיה ליניארית היא שיטה שמנסה למצוא קשר בין "
-    "מאפייני הקלט לבין השכר. במקרה שלנו, המודל משתמש "
-    "בשנות הניסיון ובגיל של העובד כדי להעריך מה יהיה שכרו."
-)
+    if affordable:
 
-st.write(
-    "במהלך האימון המודל לומד את מידת ההשפעה של כל אחד "
-    "משני המאפיינים על השכר, ומנסה להתאים את התחזיות "
-    "שלו לערכי השכר האמיתיים שבמערך הנתונים."
-)
+        # בחירה במועמד בעל הניסיון הרב ביותר
+        # מבין אלה שהמודל מעריך שיעמדו בתקציב
+        return max(
+            affordable,
+            key=lambda i: (
+                candidates[i]["experience"],
+                -candidates[i]["prediction"]
+            )
+        )
+
+    # אם אף מועמד אינו עומד בתקציב לפי התחזית,
+    # המודל בוחר את המועמד עם תחזית השכר הנמוכה ביותר
+    return min(
+        range(len(candidates)),
+        key=lambda i: candidates[i]["prediction"]
+    )
 
 
-# =========================
-# הצגת טבלת הנתונים
-# =========================
+# =====================================================
+# חישוב ניקוד
+# =====================================================
 
-if st.checkbox("הצג את טבלת הנתונים"):
+def calculate_score(candidate, candidates, budget):
+
+    # אם השכר האמיתי חורג מהתקציב - אין נקודות
+    if candidate["actual_salary"] > budget:
+        return 0
+
+    score = 10
+
+    # מציאת הניסיון הגבוה ביותר מבין המועמדים
+    # שהשכר האמיתי שלהם נמצא במסגרת התקציב
+    affordable = [
+        c for c in candidates
+        if c["actual_salary"] <= budget
+    ]
+
+    max_experience = max(
+        c["experience"] for c in affordable
+    )
+
+    if candidate["experience"] == max_experience:
+        score += 5
+
+    return score
+
+
+# =====================================================
+# מסך פתיחה
+# =====================================================
+
+def show_start_screen():
+
+    st.title("💼 מנהל חברת ההייטק")
+
+    st.subheader("ברוכים הבאים לחברת ההייטק שלכם!")
+
+    st.write(
+        """
+        אתם מנהלי חברת הייטק, ועליכם לגייס עובדים חדשים
+        תוך שמירה על תקציב מוגבל.
+
+        בכל סיבוב יוצגו בפניכם שלושה מועמדים.
+        תצטרכו לבחור את העובד שלדעתכם יהיה המשתלם ביותר.
+
+        אבל יש לכם מתחרה: מודל הבינה המלאכותית!
+
+        גם הוא יבחר מועמד על סמך תחזיות השכר שלו.
+        מי יצליח לנהל את החברה בצורה טובה יותר?
+        """
+    )
+
+    st.divider()
+
+    st.header("📖 איך משחקים?")
+
+    st.markdown(
+        """
+        **1.** המשחק כולל חמישה סיבובים.
+
+        **2.** בכל סיבוב יוצגו שלושה מועמדים עם גיל,
+        שנות ניסיון ותחזית שכר של המודל.
+
+        **3.** יוצג לכם תקציב הגיוס של החברה.
+
+        **4.** עליכם לבחור מועמד אחד להעסקה.
+        במקביל, המודל יבחר מועמד משלו.
+
+        **5.** לאחר הבחירה ייחשף השכר האמיתי של כל מועמד.
+
+        **6. שיטת הניקוד:**
+
+        - 10 נקודות על בחירת מועמד שהשכר האמיתי שלו
+          עומד בתקציב.
+        - 5 נקודות נוספות אם בחרתם גם במועמד בעל
+          הניסיון הרב ביותר מבין המועמדים העומדים בתקציב.
+        - אם השכר האמיתי חורג מהתקציב, לא תקבלו נקודות.
+
+        **7.** בסוף חמשת הסיבובים נשווה את הניקוד שלכם
+        לניקוד של המודל.
+        """
+    )
+
+    st.info(
+        "המטרה: לקבל החלטות חכמות, לשמור על התקציב "
+        "ולנצח את מודל הבינה המלאכותית!"
+    )
+
+    st.divider()
+
+    if st.button(
+        "🚀 התחל משחק",
+        use_container_width=True
+    ):
+        start_game()
+        st.rerun()
+
+
+# =====================================================
+# מסך המשחק
+# =====================================================
+
+def show_round():
+
+    round_number = st.session_state.round_number
+
+    current_round = st.session_state.rounds[
+        round_number
+    ]
+
+    candidates = current_round["candidates"]
+    budget = current_round["budget"]
+
+    st.title("💼 מנהל חברת ההייטק")
+
+    # הצגת הניקוד וההתקדמות
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "הניקוד שלך",
+        st.session_state.user_score
+    )
+
+    col2.metric(
+        "ניקוד המודל",
+        st.session_state.model_score
+    )
+
+    col3.metric(
+        "סיבוב",
+        f"{round_number + 1} מתוך 5"
+    )
+
+    st.progress(
+        (round_number + 1) / 5
+    )
+
+    st.divider()
+
+    st.header(
+        f"סיבוב {round_number + 1}"
+    )
+
+    st.subheader(
+        f"💰 תקציב הגיוס: ${budget:,.0f}"
+    )
+
+    st.write(
+        "בחרו את המועמד שלדעתכם יהיה המשתלם ביותר לחברה."
+    )
+
+    # הצגת שלושת המועמדים
+    columns = st.columns(3)
+
+    for i, candidate in enumerate(candidates):
+
+        with columns[i]:
+
+            st.markdown(
+                f"### {candidate['name']}"
+            )
+
+            st.write(
+                f"**גיל:** {candidate['age']}"
+            )
+
+            st.write(
+                f"**שנות ניסיון:** {candidate['experience']:.1f}"
+            )
+
+            st.metric(
+                "תחזית השכר של המודל",
+                f"${candidate['prediction']:,.0f}"
+            )
+
+    st.divider()
+
+    # בחירת המשתמש
+    if not st.session_state.answered:
+
+        with st.form(
+            key=f"round_form_{round_number}"
+        ):
+
+            choice = st.radio(
+                "איזה מועמד תרצו להעסיק?",
+                options=[0, 1, 2],
+                format_func=lambda i: candidates[i]["name"],
+                horizontal=True
+            )
+
+            submitted = st.form_submit_button(
+                "אשר בחירה",
+                use_container_width=True
+            )
+
+        if submitted:
+
+            model_choice = model_choose_candidate(
+                candidates,
+                budget
+            )
+
+            user_points = calculate_score(
+                candidates[choice],
+                candidates,
+                budget
+            )
+
+            model_points = calculate_score(
+                candidates[model_choice],
+                candidates,
+                budget
+            )
+
+            result = {
+                "user_choice": choice,
+                "model_choice": model_choice,
+                "user_points": user_points,
+                "model_points": model_points
+            }
+
+            st.session_state.user_score += user_points
+            st.session_state.model_score += model_points
+
+            st.session_state.last_result = result
+
+            st.session_state.history.append(
+                result
+            )
+
+            st.session_state.answered = True
+
+            st.rerun()
+
+    # =================================================
+    # תוצאות הסיבוב
+    # =================================================
+
+    else:
+
+        result = st.session_state.last_result
+
+        user_choice = result["user_choice"]
+        model_choice = result["model_choice"]
+
+        st.divider()
+
+        st.header("📊 תוצאות הסיבוב")
+
+        st.write(
+            f"**הבחירה שלך:** "
+            f"{candidates[user_choice]['name']}"
+        )
+
+        st.write(
+            f"**בחירת המודל:** "
+            f"{candidates[model_choice]['name']}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "הנקודות שקיבלת",
+            result["user_points"]
+        )
+
+        col2.metric(
+            "הנקודות שקיבל המודל",
+            result["model_points"]
+        )
+
+        if result["user_points"] > result["model_points"]:
+
+            st.success(
+                "🎉 ניצחת בסיבוב הזה!"
+            )
+
+        elif result["user_points"] < result["model_points"]:
+
+            st.warning(
+                "המודל ניצח בסיבוב הזה."
+            )
+
+        else:
+
+            st.info(
+                "תיקו! שניכם קיבלתם את אותו הניקוד."
+            )
+
+        # הצגת השכר האמיתי
+        st.subheader(
+            "השכר האמיתי של המועמדים"
+        )
+
+        results_table = []
+
+        for i, candidate in enumerate(candidates):
+
+            results_table.append({
+
+                "מועמד": candidate["name"],
+
+                "גיל": candidate["age"],
+
+                "שנות ניסיון": candidate["experience"],
+
+                "תחזית המודל": (
+                    f"${candidate['prediction']:,.0f}"
+                ),
+
+                "שכר אמיתי": (
+                    f"${candidate['actual_salary']:,.0f}"
+                ),
+
+                "הבחירה שלך": (
+                    "כן" if i == user_choice else "לא"
+                ),
+
+                "בחירת המודל": (
+                    "כן" if i == model_choice else "לא"
+                )
+            })
+
+        st.dataframe(
+            pd.DataFrame(results_table),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.divider()
+
+        # מעבר לסיבוב הבא
+        if round_number < 4:
+
+            if st.button(
+                "לסיבוב הבא ➜",
+                use_container_width=True
+            ):
+
+                st.session_state.round_number += 1
+
+                st.session_state.answered = False
+
+                st.session_state.last_result = None
+
+                st.rerun()
+
+        else:
+
+            if st.button(
+                "לסיכום המשחק 🏆",
+                use_container_width=True
+            ):
+
+                st.session_state.round_number = 5
+
+                st.rerun()
+
+
+# =====================================================
+# מסך סיום
+# =====================================================
+
+def show_end_screen():
+
+    st.title("🏆 סיכום המשחק")
+
+    st.subheader(
+        "המשחק הסתיים!"
+    )
+
+    user_score = st.session_state.user_score
+    model_score = st.session_state.model_score
+
+    col1, col2 = st.columns(2)
+
+    col1.metric(
+        "הניקוד שלך",
+        user_score
+    )
+
+    col2.metric(
+        "ניקוד המודל",
+        model_score
+    )
+
+    st.divider()
+
+    if user_score > model_score:
+
+        st.success(
+            "🎉 כל הכבוד! ניצחת את מודל הבינה המלאכותית!"
+        )
+
+    elif user_score < model_score:
+
+        st.warning(
+            "הפעם מודל הבינה המלאכותית הצליח לנהל "
+            "את החברה טוב יותר."
+        )
+
+    else:
+
+        st.info(
+            "המשחק הסתיים בתיקו!"
+        )
+
+    st.header(
+        "תוצאות לפי סיבוב"
+    )
+
+    history_table = []
+
+    for i, result in enumerate(
+        st.session_state.history
+    ):
+
+        history_table.append({
+
+            "סיבוב": i + 1,
+
+            "הנקודות שלך": result["user_points"],
+
+            "נקודות המודל": result["model_points"]
+        })
 
     st.dataframe(
-        data,
+        pd.DataFrame(history_table),
         use_container_width=True,
         hide_index=True
     )
 
-
-# =========================
-# 2. קבלת תחזית שכר
-# =========================
-
-st.header("2. קבלת תחזית שכר")
-
-st.write(
-    "הזינו את גיל העובד ואת מספר שנות הניסיון שלו "
-    "כדי לקבל תחזית של השכר."
-)
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    years_input = st.number_input(
-        "הכנס שנות ניסיון:",
-        value=5.0,
-        step=0.5,
-        min_value=0.0
-    )
-
-with col2:
-
-    age_input = st.number_input(
-        "הכנס גיל:",
-        value=30,
-        step=1,
-        min_value=0
-    )
-
-
-if st.button("חשב תחזית"):
-
-    features = np.array([
-        [years_input, age_input]
-    ])
-
-    pred = model.predict(features)[0]
-
     st.write(
-        f"**השכר המשוער עבור עובד בן {age_input} "
-        f"עם {years_input} שנות ניסיון הוא: ${pred:,.2f}**"
+        "תודה ששיחקתם! האם תצליחו לנצח את המודל גם בפעם הבאה?"
     )
 
+    if st.button(
+        "🔄 שחק שוב",
+        use_container_width=True
+    ):
 
-# =========================
-# 3. תהליך אימון המודל והערכת ה-Loss
-# =========================
-
-st.header("3. תהליך אימון המודל והערכת ה-Loss")
-
-st.write("### שלבי תהליך האימון:")
-
-
-st.write(
-    "1. **טעינת הנתונים וניקוים:** "
-    "בחרתי מערך נתונים מ-Kaggle וטענתי אותו לאפליקציה. "
-    "השתמשתי בשלוש עמודות: שנות ניסיון, גיל ושכר. "
-    "המרתי את הערכים בעמודות לערכים מספריים והסרתי "
-    "שורות שבהן היה חסר ערך באחד משלושת המשתנים."
-)
+        start_game()
+        st.rerun()
 
 
-st.write(
-    "2. **הכנת הנתונים:** "
-    "הגדרתי את שנות הניסיון ואת הגיל כמאפייני הקלט "
-    "(X), ואת השכר כמשתנה המטרה (y). "
-    "כלומר, המודל מקבל שני נתונים על העובד ומשתמש בהם "
-    "כדי לנסות לחזות את השכר שלו."
-)
+# =====================================================
+# מידע על המודל
+# =====================================================
+
+def show_model_information():
+
+    with st.expander(
+        "🧠 מידע על מודל הבינה המלאכותית"
+    ):
+
+        st.write(
+            """
+            המשחק מבוסס על מודל רגרסיה לינארית.
+
+            המודל לומד את הקשר בין גיל העובד,
+            שנות הניסיון שלו והשכר שלו.
+
+            לאחר האימון, המודל מסוגל לחזות שכר
+            עבור עובדים חדשים על סמך גילם וניסיונם.
+            """
+        )
+
+        st.subheader(
+            "השוואת ביצועי המודלים"
+        )
+
+        st.write(
+            "המדד המוצג הוא MSE – ממוצע ריבועי שגיאות החיזוי. "
+            "ערך נמוך יותר מעיד על תחזיות מדויקות יותר."
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "מודל בסיסי",
+            f"{baseline_mse:,.0f}"
+        )
+
+        col2.metric(
+            "מודל עם משתנה אחד",
+            f"{one_feature_mse:,.0f}"
+        )
+
+        col3.metric(
+            "מודל עם שני משתנים",
+            f"{model_mse:,.0f}"
+        )
+
+        st.write(
+            """
+            המודל הבסיסי חוזה תמיד את השכר הממוצע
+            בנתוני האימון.
+
+            המודל עם משתנה אחד משתמש בשנות הניסיון בלבד.
+
+            המודל עם שני משתנים משתמש גם בגיל וגם בשנות הניסיון.
+            """
+        )
 
 
-st.write(
-    "3. **יצירת Baseline:** "
-    "חישבתי נקודת ייחוס (Baseline) באמצעות ממוצע השכר "
-    "של כלל העובדים. ה-Baseline מניח שאין לנו מידע נוסף "
-    "על העובד, ולכן עבור כל עובד הוא חוזה את אותו ערך: "
-    "ממוצע השכר של כל העובדים."
-)
+# =====================================================
+# הפעלת האפליקציה
+# =====================================================
+
+if not st.session_state.game_started:
+
+    show_start_screen()
+
+elif st.session_state.round_number < 5:
+
+    show_round()
+
+else:
+
+    show_end_screen()
 
 
-st.write(
-    "4. **אימון המודל:** "
-    "השתמשתי בספריית sklearn כדי לאמן מודל של רגרסיה "
-    "ליניארית. המודל מקבל שני מאפייני קלט: שנות ניסיון "
-    "וגיל. במהלך האימון הוא לומד את המשקל של כל אחד "
-    "מהמאפיינים ואת נקודת החיתוך. המטרה היא למצוא את "
-    "הערכים שיאפשרו למודל לבצע תחזיות שקרובות ככל האפשר "
-    "לשכר האמיתי של העובדים."
-)
+# מידע על המודל בתחתית האתר
+st.divider()
 
-
-st.write(
-    "5. **חישוב ה-Loss:** "
-    "לאחר אימון המודל חישבתי את התחזיות שלו והשוויתי "
-    "אותן לשכר האמיתי. לצורך ההערכה השתמשתי במדד MSE "
-    "(Mean Squared Error), שמחשב את ממוצע ריבועי "
-    "ההפרשים בין התחזיות לבין הערכים האמיתיים. "
-    "ככל שערך ה-MSE נמוך יותר, כך השגיאה של המודל קטנה יותר."
-)
-
-
-st.write(
-    "6. **השוואה בין המודלים:** "
-    "השוויתי בין שלוש אפשרויות: ה-Baseline שחוזה את "
-    "ממוצע השכר, מודל רגרסיה ליניארית שמשתמש רק בשנות "
-    "הניסיון, ומודל רגרסיה ליניארית שמשתמש בשני מאפיינים: "
-    "שנות ניסיון וגיל. באמצעות ההשוואה ניתן לבדוק האם "
-    "הוספת הגיל משפרת את יכולת החיזוי של המודל."
-)
-
-
-# =========================
-# הצגת המשקולות
-# =========================
-
-st.write("### הפרמטרים שחושבו במהלך האימון:")
-
-st.write(
-    f"**משקל שנות הניסיון:** {model.coef_[0]:,.2f}"
-)
-
-st.write(
-    f"**משקל הגיל:** {model.coef_[1]:,.2f}"
-)
-
-st.write(
-    f"**נקודת החיתוך:** {model.intercept_:,.2f}"
-)
-
-
-# =========================
-# תוצאות ההערכה
-# =========================
-
-st.write("### תוצאות ההערכה:")
-
-st.write(
-    f"**Baseline Loss:** ${baseline_loss:,.2f}"
-)
-
-st.write(
-    f"**One Feature Loss:** ${model_loss_one:,.2f}"
-)
-
-st.write(
-    f"**Two Features Loss:** ${model_loss:,.2f}"
-)
-
-
-st.write(
-    "אם ה-Loss של המודל עם שני המאפיינים נמוך יותר "
-    "מה-Loss של המודל עם מאפיין אחד ושל ה-Baseline, "
-    "המשמעות היא שהמודל עם שני המאפיינים מתאים טוב יותר "
-    "לנתונים שעליהם הוא אומן."
-)
-
-
-st.caption(
-    "הערה: האימון והערכת ה-Loss מתבצעים על אותו מערך נתונים. "
-    "לכן התוצאות מתארות את ההתאמה לנתוני האימון ואינן בהכרח "
-    "מעידות על רמת הדיוק של המודל כאשר הוא מקבל נתונים חדשים."
-)
+show_model_information()
