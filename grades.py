@@ -11,26 +11,53 @@ from sklearn.linear_model import LinearRegression
 # עיצוב האפליקציה - עברית
 # =========================
 
-st.set_page_config(page_title="מערכת חיזוי שכר", page_icon="💼", layout="wide")
+st.set_page_config(
+    page_title="מערכת חיזוי שכר",
+    page_icon="💼",
+    layout="wide"
+)
 
 st.markdown(
     """
     <style>
+    /* יישור כל האפליקציה לימין */
     .stApp {
         direction: rtl;
         text-align: right;
     }
 
-    h1, h2, h3, h4, h5, h6, p, label {
-        text-align: right;
+    /* יישור כותרות וטקסט */
+    .stMarkdown,
+    .stMarkdown p,
+    .stMarkdown h1,
+    .stMarkdown h2,
+    .stMarkdown h3,
+    .stMarkdown h4,
+    .stMarkdown li,
+    .stText,
+    label {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+
+    /* יישור תיבות הקלט */
+    div[data-testid="stNumberInput"] label {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+
+    /* יישור תיבות הקלט */
+    div[data-testid="stNumberInput"] input {
+        text-align: right !important;
+    }
+
+    /* יישור תיבות סימון */
+    div[data-testid="stCheckbox"] {
         direction: rtl;
-    }
-
-    input {
-        direction: ltr;
         text-align: right;
     }
 
+    /* יישור הטבלה */
     [data-testid="stDataFrame"] {
         width: 100%;
     }
@@ -52,16 +79,24 @@ TARGET_COLUMN = "Salary"
 
 @st.cache_data
 def load_data():
+
     path = kagglehub.dataset_download(KAGGLE_DATASET)
+
     csv_path = os.path.join(path, "Salary Data.csv")
+
     df = pd.read_csv(csv_path)
 
     # המרת הערכים בעמודות לערכים מספריים
     for column in FEATURE_COLUMNS + [TARGET_COLUMN]:
-        df[column] = pd.to_numeric(df[column], errors="coerce")
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce"
+        )
 
     # הסרת שורות עם ערכים חסרים
-    df = df.dropna(subset=FEATURE_COLUMNS + [TARGET_COLUMN])
+    df = df.dropna(
+        subset=FEATURE_COLUMNS + [TARGET_COLUMN]
+    )
 
     return df
 
@@ -74,6 +109,7 @@ data = load_data()
 # =========================
 
 X = data[FEATURE_COLUMNS].to_numpy()
+
 y = data[TARGET_COLUMN].to_numpy()
 
 
@@ -91,8 +127,7 @@ baseline_loss = np.mean(
 
 
 # =========================
-# אימון מודל Linear Regression
-# עם שני מאפיינים
+# אימון מודל עם שני מאפיינים
 # =========================
 
 model = LinearRegression()
@@ -123,11 +158,15 @@ model_loss = np.mean(
 
 model_one_feature = LinearRegression()
 
-X_one_feature = data[["Years of Experience"]].to_numpy()
+X_one_feature = data[
+    ["Years of Experience"]
+].to_numpy()
 
 model_one_feature.fit(X_one_feature, y)
 
-y_hat_one = model_one_feature.predict(X_one_feature)
+y_hat_one = model_one_feature.predict(
+    X_one_feature
+)
 
 model_loss_one = np.mean(
     (y - y_hat_one) ** 2
@@ -148,26 +187,22 @@ st.title("מערכת חיזוי שכר")
 st.header("1. הסבר על המודל והנתונים")
 
 st.write(
-    "האפליקציה משתמשת במודל **רגרסיה ליניארית (Linear Regression)** "
-    "כדי לחזות את השכר (Salary) של עובד בתחום מדעי הנתונים "
-    "בהתבסס על שני מאפיינים: מספר שנות הניסיון שלו (Years of Experience) "
-    "והגיל שלו (Age)."
+    "האפליקציה משתמשת במודל רגרסיה ליניארית "
+    "(Linear Regression) כדי לחזות את השכר של עובד "
+    "בהתבסס על שני מאפיינים: מספר שנות הניסיון שלו "
+    "(Years of Experience) והגיל שלו (Age)."
 )
 
 st.write(
-    "רגרסיה ליניארית מנסה למצוא קשר בין מאפייני הקלט לבין השכר. "
-    "המודל מתאים משוואה ליניארית לנתונים, כאשר שנות הניסיון והגיל "
-    "הם משתני הקלט והשכר הוא משתנה המטרה."
-)
-
-st.latex(
-    r"Salary = w_1 \cdot Experience + w_2 \cdot Age + b"
+    "רגרסיה ליניארית היא שיטה שמנסה למצוא קשר בין "
+    "מאפייני הקלט לבין השכר. במקרה שלנו, המודל משתמש "
+    "בשנות הניסיון ובגיל של העובד כדי להעריך מה יהיה שכרו."
 )
 
 st.write(
-    "במשוואה, w₁ מייצג את המשקל של שנות הניסיון, "
-    "w₂ מייצג את המשקל של הגיל, ו-b מייצג את נקודת החיתוך "
-    "של המודל עם ציר ה-Y."
+    "במהלך האימון המודל לומד את מידת ההשפעה של כל אחד "
+    "משני המאפיינים על השכר, ומנסה להתאים את התחזיות "
+    "שלו לערכי השכר האמיתיים שבמערך הנתונים."
 )
 
 
@@ -198,6 +233,7 @@ st.write(
 col1, col2 = st.columns(2)
 
 with col1:
+
     years_input = st.number_input(
         "הכנס שנות ניסיון:",
         value=5.0,
@@ -206,6 +242,7 @@ with col1:
     )
 
 with col2:
+
     age_input = st.number_input(
         "הכנס גיל:",
         value=30,
@@ -216,7 +253,9 @@ with col2:
 
 if st.button("חשב תחזית"):
 
-    features = np.array([[years_input, age_input]])
+    features = np.array([
+        [years_input, age_input]
+    ])
 
     pred = model.predict(features)[0]
 
@@ -239,16 +278,17 @@ st.write(
     "1. **טעינת הנתונים וניקוים:** "
     "בחרתי מערך נתונים מ-Kaggle וטענתי אותו לאפליקציה. "
     "השתמשתי בשלוש עמודות: שנות ניסיון, גיל ושכר. "
-    "המרתי את הערכים בעמודות לערכים מספריים והסרתי שורות "
-    "שבהן היה חסר ערך באחד משלושת המשתנים."
+    "המרתי את הערכים בעמודות לערכים מספריים והסרתי "
+    "שורות שבהן היה חסר ערך באחד משלושת המשתנים."
 )
 
 
 st.write(
     "2. **הכנת הנתונים:** "
-    "הגדרתי את שנות הניסיון ואת הגיל כמאפייני הקלט (X), "
-    "ואת השכר כמשתנה המטרה (y). כך כל דוגמה מכילה שני נתוני קלט "
-    "שבהתבסס עליהם המודל מנסה לחזות את השכר."
+    "הגדרתי את שנות הניסיון ואת הגיל כמאפייני הקלט "
+    "(X), ואת השכר כמשתנה המטרה (y). "
+    "כלומר, המודל מקבל שני נתונים על העובד ומשתמש בהם "
+    "כדי לנסות לחזות את השכר שלו."
 )
 
 
@@ -263,36 +303,32 @@ st.write(
 
 st.write(
     "4. **אימון המודל:** "
-    "השתמשתי בספריית sklearn כדי לאמן מודל של רגרסיה ליניארית. "
-    "המודל מקבל שני מאפייני קלט: שנות ניסיון וגיל, ומחשב "
-    "את המשקולות w₁ ו-w₂ ואת נקודת החיתוך b. "
-    "המטרה היא למצוא את המקדמים של המשוואה כך שסכום ריבועי "
-    "השגיאות בין התחזיות לבין השכר האמיתי יהיה קטן ככל האפשר. "
-    "כל משקל מייצג את התרומה של אחד ממאפייני הקלט לחיזוי השכר."
+    "השתמשתי בספריית sklearn כדי לאמן מודל של רגרסיה "
+    "ליניארית. המודל מקבל שני מאפייני קלט: שנות ניסיון "
+    "וגיל. במהלך האימון הוא לומד את המשקל של כל אחד "
+    "מהמאפיינים ואת נקודת החיתוך. המטרה היא למצוא את "
+    "הערכים שיאפשרו למודל לבצע תחזיות שקרובות ככל האפשר "
+    "לשכר האמיתי של העובדים."
 )
 
 
 st.write(
     "5. **חישוב ה-Loss:** "
-    "לאחר אימון המודל חישבתי את התחזיות שלו והשוויתי אותן "
-    "לשכר האמיתי. לצורך ההערכה השתמשתי במדד MSE "
-    "(Mean Squared Error), שמחשב את ממוצע ריבועי ההפרשים "
-    "בין התחזית לבין הערך האמיתי. ככל שה-MSE נמוך יותר, "
-    "כך השגיאה של המודל קטנה יותר לפי מדד זה."
-)
-
-st.latex(
-    r"MSE = \frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2"
+    "לאחר אימון המודל חישבתי את התחזיות שלו והשוויתי "
+    "אותן לשכר האמיתי. לצורך ההערכה השתמשתי במדד MSE "
+    "(Mean Squared Error), שמחשב את ממוצע ריבועי "
+    "ההפרשים בין התחזיות לבין הערכים האמיתיים. "
+    "ככל שערך ה-MSE נמוך יותר, כך השגיאה של המודל קטנה יותר."
 )
 
 
 st.write(
     "6. **השוואה בין המודלים:** "
-    "השוויתי בין שלוש אפשרויות: ה-Baseline שמנבא את ממוצע השכר, "
-    "מודל רגרסיה ליניארית שמשתמש רק בשנות הניסיון, "
-    "ומודל רגרסיה ליניארית שמשתמש בשני מאפיינים – "
-    "שנות ניסיון וגיל. כך ניתן לבדוק האם הוספת הגיל משפרת "
-    "את יכולת החיזוי של המודל."
+    "השוויתי בין שלוש אפשרויות: ה-Baseline שחוזה את "
+    "ממוצע השכר, מודל רגרסיה ליניארית שמשתמש רק בשנות "
+    "הניסיון, ומודל רגרסיה ליניארית שמשתמש בשני מאפיינים: "
+    "שנות ניסיון וגיל. באמצעות ההשוואה ניתן לבדוק האם "
+    "הוספת הגיל משפרת את יכולת החיזוי של המודל."
 )
 
 
@@ -303,15 +339,15 @@ st.write(
 st.write("### הפרמטרים שחושבו במהלך האימון:")
 
 st.write(
-    f"**משקל שנות הניסיון (w₁):** {model.coef_[0]:,.2f}"
+    f"**משקל שנות הניסיון:** {model.coef_[0]:,.2f}"
 )
 
 st.write(
-    f"**משקל הגיל (w₂):** {model.coef_[1]:,.2f}"
+    f"**משקל הגיל:** {model.coef_[1]:,.2f}"
 )
 
 st.write(
-    f"**נקודת החיתוך (b):** {model.intercept_:,.2f}"
+    f"**נקודת החיתוך:** {model.intercept_:,.2f}"
 )
 
 
@@ -322,18 +358,15 @@ st.write(
 st.write("### תוצאות ההערכה:")
 
 st.write(
-    f"**Baseline Loss:** "
-    f"${baseline_loss:,.2f}"
+    f"**Baseline Loss:** ${baseline_loss:,.2f}"
 )
 
 st.write(
-    f"**One Feature Loss:** "
-    f"${model_loss_one:,.2f}"
+    f"**One Feature Loss:** ${model_loss_one:,.2f}"
 )
 
 st.write(
-    f"**Two Features Loss:** "
-    f"${model_loss:,.2f}"
+    f"**Two Features Loss:** ${model_loss:,.2f}"
 )
 
 
@@ -343,6 +376,7 @@ st.write(
     "המשמעות היא שהמודל עם שני המאפיינים מתאים טוב יותר "
     "לנתונים שעליהם הוא אומן."
 )
+
 
 st.caption(
     "הערה: האימון והערכת ה-Loss מתבצעים על אותו מערך נתונים. "
