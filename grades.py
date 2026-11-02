@@ -390,3 +390,380 @@ st.caption(
     "לכן התוצאות מתארות את ההתאמה לנתוני האימון ואינן בהכרח "
     "מעידות על רמת הדיוק של המודל כאשר הוא מקבל נתונים חדשים."
 )
+
+
+
+# =========================
+# 4. משחק: אתה נגד המודל
+# =========================
+
+st.divider()
+
+st.header("4. אתגר השכר – אתה נגד המודל")
+
+st.write(
+    "במשחק הזה תתחרו מול מודל הרגרסיה הליניארית "
+    "ותנסו לגלות מי מסוגל לחזות שכר בצורה מדויקת יותר."
+)
+
+# =========================
+# אתחול מצב המשחק
+# =========================
+
+if "game_started" not in st.session_state:
+    st.session_state.game_started = False
+
+if "game_round" not in st.session_state:
+    st.session_state.game_round = 0
+
+if "user_score" not in st.session_state:
+    st.session_state.user_score = 0
+
+if "model_score" not in st.session_state:
+    st.session_state.model_score = 0
+
+if "round_result" not in st.session_state:
+    st.session_state.round_result = None
+
+# =========================
+# מסך פתיחה
+# =========================
+
+if not st.session_state.game_started:
+
+    st.subheader("ברוכים הבאים לאתגר!")
+
+    st.write(
+        """
+        **מה המטרה?**
+
+        להתחרות במודל חיזוי השכר ולבדוק מי מצליח
+        להעריך בצורה מדויקת יותר את השכר האמיתי של עובדים.
+
+        **איך משחקים?**
+
+        1. יוצגו לכם פרטים של עובד אמיתי ממאגר הנתונים.
+        2. עליכם לנחש מהו השכר השנתי שלו.
+        3. במקביל, המודל יחזה את השכר באמצעות שנות הניסיון והגיל.
+        4. לאחר הניחוש תיחשף התשובה האמיתית ותוכלו להשוות ביניכם.
+
+        **איך צוברים נקודות?**
+
+        - 2 נקודות למי שהתחזית שלו קרובה יותר לשכר האמיתי.
+        - במקרה של תיקו, כל אחד מקבל נקודה אחת.
+        - מי שצובר יותר נקודות לאחר 5 סיבובים מנצח!
+        """
+    )
+
+    st.info(
+        "כל העובדים במשחק נבחרים מתוך מערך הנתונים האמיתי "
+        "שעליו אומן המודל."
+    )
+
+    if st.button("התחל משחק!", key="start_game"):
+
+        st.session_state.game_started = True
+
+        # בחירת 5 עובדים אמיתיים מתוך מערך הנתונים
+        st.session_state.game_data = (
+            data.sample(n=5).reset_index(drop=True)
+        )
+
+        st.session_state.game_round = 0
+        st.session_state.user_score = 0
+        st.session_state.model_score = 0
+        st.session_state.round_result = None
+
+        st.rerun()
+
+
+# =========================
+# מסך המשחק
+# =========================
+
+else:
+
+    current_round = st.session_state.game_round
+
+    # =========================
+    # מסך סיום
+    # =========================
+
+    if current_round >= 5:
+
+        st.subheader("המשחק הסתיים!")
+
+        st.write("### התוצאות הסופיות")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(
+                "הניקוד שלך",
+                st.session_state.user_score
+            )
+
+        with col2:
+            st.metric(
+                "הניקוד של המודל",
+                st.session_state.model_score
+            )
+
+        if st.session_state.user_score > st.session_state.model_score:
+
+            st.success(
+                "ניצחת! הצלחת לחזות את השכר טוב יותר מהמודל."
+            )
+
+        elif st.session_state.user_score < st.session_state.model_score:
+
+            st.warning(
+                "המודל ניצח הפעם! התחזיות שלו היו מדויקות יותר."
+            )
+
+        else:
+
+            st.info("תיקו! הצלחת להשתוות למודל.")
+
+        st.write(
+            "המשחק ממחיש כיצד מודל למידת מכונה "
+            "משתמש בנתונים כדי לבצע תחזיות, "
+            "וכיצד ניתן להשוות את התחזיות לערכים האמיתיים."
+        )
+
+        if st.button("שחק שוב", key="restart_game"):
+
+            st.session_state.game_started = False
+            st.session_state.game_round = 0
+            st.session_state.user_score = 0
+            st.session_state.model_score = 0
+            st.session_state.round_result = None
+
+            st.rerun()
+
+    # =========================
+    # סיבוב פעיל
+    # =========================
+
+    else:
+
+        employee = st.session_state.game_data.iloc[
+            current_round
+        ]
+
+        age = int(employee["Age"])
+
+        experience = float(
+            employee["Years of Experience"]
+        )
+
+        real_salary = float(
+            employee["Salary"]
+        )
+
+        # תחזית המודל
+        model_prediction = float(
+            model.predict(
+                np.array([[experience, age]])
+            )[0]
+        )
+
+        st.subheader(
+            f"סיבוב {current_round + 1} מתוך 5"
+        )
+
+        # מד התקדמות
+        st.progress(
+            (current_round + 1) / 5
+        )
+
+        # הצגת הניקוד
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric(
+                "הניקוד שלך",
+                st.session_state.user_score
+            )
+
+        with col2:
+            st.metric(
+                "ניקוד המודל",
+                st.session_state.model_score
+            )
+
+        st.divider()
+
+        st.write("### פרטי העובד")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.metric("גיל העובד", age)
+
+        with col2:
+            st.metric(
+                "שנות ניסיון",
+                f"{experience:g}"
+            )
+
+        st.write(
+            "מה לדעתך השכר השנתי של העובד?"
+        )
+
+        # =========================
+        # הצגת תוצאת הסיבוב
+        # =========================
+
+        if st.session_state.round_result is None:
+
+            with st.form(
+                key=f"guess_form_{current_round}"
+            ):
+
+                user_guess = st.number_input(
+                    "הניחוש שלך (בדולרים):",
+                    min_value=0.0,
+                    max_value=1000000.0,
+                    value=50000.0,
+                    step=1000.0
+                )
+
+                submitted = st.form_submit_button(
+                    "בדוק את הניחוש!"
+                )
+
+            if submitted:
+
+                user_error = abs(
+                    user_guess - real_salary
+                )
+
+                model_error = abs(
+                    model_prediction - real_salary
+                )
+
+                # חישוב ניקוד
+                if user_error < model_error:
+
+                    st.session_state.user_score += 2
+
+                    winner = "user"
+
+                elif model_error < user_error:
+
+                    st.session_state.model_score += 2
+
+                    winner = "model"
+
+                else:
+
+                    st.session_state.user_score += 1
+                    st.session_state.model_score += 1
+
+                    winner = "tie"
+
+                st.session_state.round_result = {
+                    "user_guess": user_guess,
+                    "real_salary": real_salary,
+                    "model_prediction": model_prediction,
+                    "user_error": user_error,
+                    "model_error": model_error,
+                    "winner": winner
+                }
+
+                st.rerun()
+
+        # =========================
+        # משוב לאחר הסיבוב
+        # =========================
+
+        else:
+
+            result = st.session_state.round_result
+
+            st.subheader("תוצאות הסיבוב")
+
+            st.metric(
+                "השכר האמיתי",
+                f"${result['real_salary']:,.2f}"
+            )
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "הניחוש שלך",
+                    f"${result['user_guess']:,.2f}"
+                )
+
+                st.write(
+                    f"הפרש מהשכר האמיתי: "
+                    f"${result['user_error']:,.2f}"
+                )
+
+            with col2:
+
+                st.metric(
+                    "תחזית המודל",
+                    f"${result['model_prediction']:,.2f}"
+                )
+
+                st.write(
+                    f"הפרש מהשכר האמיתי: "
+                    f"${result['model_error']:,.2f}"
+                )
+
+            st.divider()
+
+            if result["winner"] == "user":
+
+                st.success(
+                    "כל הכבוד! היית מדויק יותר מהמודל "
+                    "וזכית ב-2 נקודות!"
+                )
+
+            elif result["winner"] == "model":
+
+                st.warning(
+                    "המודל היה מדויק יותר הפעם "
+                    "וזכה ב-2 נקודות."
+                )
+
+            else:
+
+                st.info(
+                    "תיקו! שניכם קיבלתם נקודה אחת."
+                )
+
+            st.write("### הניקוד המצטבר")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "הניקוד שלך",
+                    st.session_state.user_score
+                )
+
+            with col2:
+
+                st.metric(
+                    "ניקוד המודל",
+                    st.session_state.model_score
+                )
+
+            # מעבר לסיבוב הבא
+            if st.button(
+                "לסיבוב הבא",
+                key=f"next_round_{current_round}"
+            ):
+
+                st.session_state.game_round += 1
+
+                st.session_state.round_result = None
+
+                st.rerun()
+
